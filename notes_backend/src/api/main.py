@@ -8,6 +8,8 @@ variable (provided by the database container).
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Path, Query
+import os
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api import db
@@ -25,6 +27,13 @@ openapi_tags = [
     {"name": "notes", "description": "CRUD operations for notes."},
 ]
 
+
+def _csv_env(name: str) -> list[str]:
+    """Parse a comma-separated env var into a list of trimmed, non-empty strings."""
+    raw = os.getenv(name, "")
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
 app = FastAPI(
     title="Simple Notes API",
     description=(
@@ -35,12 +44,15 @@ app = FastAPI(
     openapi_tags=openapi_tags,
 )
 
+# If ALLOWED_ORIGINS is configured, use it; otherwise allow all (template-friendly).
+_allowed_origins = _csv_env("ALLOWED_ORIGINS")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Frontend is hosted separately; allow all for this template.
+    allow_origins=_allowed_origins or ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=_csv_env("ALLOWED_METHODS") or ["*"],
+    allow_headers=_csv_env("ALLOWED_HEADERS") or ["*"],
+    max_age=int(os.getenv("CORS_MAX_AGE", "600")),
 )
 
 
